@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart' as loc;
 import 'package:permission_handler/permission_handler.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -41,9 +43,12 @@ class _MapPageState extends State<MapPage> {
   Marker? _userMarker;
 
   // Update these variables at the top of _MapPageState
-  final LatLng _gayatriNagar = const LatLng(26.8850, 75.7726);
+  // final LatLng _gayatriNagar = const LatLng(26.8850, 75.7726);
   final LatLng _manasarovarPlaza = const LatLng(26.8715, 75.7938);
   Set<Polyline> _polylines = {};
+
+  // Add these variables in _MapPageState
+  final String _apiKey = 'AIzaSyC6FQL6N44IwDliONfmjbtmzwUD8OQjBwk';
 
   @override
   void initState() {
@@ -124,7 +129,7 @@ class _MapPageState extends State<MapPage> {
       );
 
       // Listen to location updates
-      location.onLocationChanged.listen((loc.LocationData locationData) {
+      location.onLocationChanged.listen((loc.LocationData locationData) async {
         if (mounted && _isTracking) {
           final currentLatLng = LatLng(
             locationData.latitude!,
@@ -133,50 +138,41 @@ class _MapPageState extends State<MapPage> {
 
           setState(() {
             currentLocation = locationData;
-
-            // Update user marker
             _userMarker = Marker(
               markerId: const MarkerId('user'),
               position: currentLatLng,
-              icon: BitmapDescriptor.defaultMarkerWithHue(
-                  BitmapDescriptor.hueAzure),
-              infoWindow: const InfoWindow(
-                title: 'Your Location',
-                snippet: 'You are here',
-              ),
+              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+              infoWindow: const InfoWindow(title: 'Your Location'),
               rotation: locationData.heading ?? 0.0,
               flat: true,
             );
-
-            // Update polylines with new location
-            _polylines.clear();
-            _polylines.add(
-              Polyline(
-                polylineId: const PolylineId('route'),
-                points: [
-                  currentLatLng,
-                  _gayatriNagar,
-                  _manasarovarPlaza,
-                  currentLatLng,
-                ],
-                color: Colors.blue,
-                width: 4,
-                patterns: [
-                  PatternItem.dash(20),
-                  PatternItem.gap(10),
-                ],
-              ),
-            );
           });
 
-          // Smoothly follow user location
+          // Clear existing polylines
+          _polylines.clear();
+
+          // Draw routes to both destinations
+          // await _getDirectionsAndDraw(
+          //   currentLatLng, 
+          //   _gayatriNagar, 
+          //   'route_gayatri',
+          //   Colors.blue
+          // );
+          
+          await _getDirectionsAndDraw(
+            currentLatLng, 
+            _manasarovarPlaza, 
+            'route_manasarovar',
+            Colors.red
+          );
+
+          // Update camera
           mapController.animateCamera(
             CameraUpdate.newCameraPosition(
               CameraPosition(
                 target: currentLatLng,
-                zoom: 16.0,
+                zoom: 15.0,
                 bearing: locationData.heading ?? 0.0,
-                tilt: 45.0,
               ),
             ),
           );
@@ -233,7 +229,7 @@ class _MapPageState extends State<MapPage> {
           polylineId: const PolylineId('location_triangle'),
           points: [
             currentLocation,
-            _gayatriNagar,
+          //  _gayatriNagar,
             _manasarovarPlaza,
             currentLocation, // Complete the loop
           ],
@@ -259,15 +255,15 @@ class _MapPageState extends State<MapPage> {
             snippet: 'You are here',
           ),
         ),
-        Marker(
-          markerId: const MarkerId('gayatri'),
-          position: _gayatriNagar,
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-          infoWindow: const InfoWindow(
-            title: 'Gayatri Nagar',
-            snippet: 'Destination 1',
-          ),
-        ),
+        // Marker(
+        //   markerId: const MarkerId('gayatri'),
+       //   position: _gayatriNagar,
+        //   icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+        //   infoWindow: const InfoWindow(
+        //     title: 'Gayatri Nagar',
+        //     snippet: 'Destination 1',
+        //   ),
+        // ), 
         Marker(
           markerId: const MarkerId('manasarovar'),
           position: _manasarovarPlaza,
@@ -288,6 +284,69 @@ class _MapPageState extends State<MapPage> {
   //     'assets/image/image.png',
   //   );
   // }
+
+  // Add this method to get route from Google Directions API
+  Future<void> _getDirectionsAndDraw(LatLng origin, LatLng destination, String routeId, Color color) async {
+    final url = 'https://maps.googleapis.com/maps/api/directions/json'
+        '?origin=${origin.latitude},${origin.longitude}'
+        '&destination=${destination.latitude},${destination.longitude}'
+        '&key=$_apiKey';
+
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['routes'].isNotEmpty) {
+          final points = data['routes'][0]['overview_polyline']['points'];
+          final List<LatLng> routePoints = _decodePolyline(points);
+          
+          setState(() {
+            _polylines.add(
+              Polyline(
+                polylineId: PolylineId(routeId),
+                points: routePoints,
+                color: color,
+                width: 5,
+              ),
+            );
+          });
+        }
+      }
+    } catch (e) {
+      print('Error getting directions: $e');
+    }
+  }
+
+  // Add polyline decoder method
+  List<LatLng> _decodePolyline(String encoded) {
+    List<LatLng> points = [];
+    int index = 0, len = encoded.length;
+    int lat = 0, lng = 0;
+
+    while (index < len) {
+      int b, shift = 0, result = 0;
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1F) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+      lat += dlat;
+
+      shift = 0;
+      result = 0;
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1F) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+      lng += dlng;
+
+      points.add(LatLng(lat / 1E5, lng / 1E5));
+    }
+    return points;
+  }
 
   @override
   Widget build(BuildContext context) {
