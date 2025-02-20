@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Language Changer</title>
+</head>
+<body>
+    <div>
+        <h1>{{ language_data['greeting'] }}</h1>
+        <p>{{ language_data['intro'] }}</p>
+        <label for="language_select">{{ language_data['lang_select'] }}</label>
+        
+        <!-- Language selection buttons -->
+        <a href="{{ url_for('change_language', lang='en') }}">English</a>
+        <a href="{{ url_for('change_language', lang='es') }}">Español</a>
+        <a href="{{ url_for('change_language', lang='fr') }}">Français</a>
+    </div>
+</body>
+</html>
