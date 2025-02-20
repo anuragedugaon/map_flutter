@@ -141,7 +141,8 @@ class _MapPageState extends State<MapPage> {
             _userMarker = Marker(
               markerId: const MarkerId('user'),
               position: currentLatLng,
-              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+              icon: BitmapDescriptor.defaultMarkerWithHue(
+                  BitmapDescriptor.hueAzure),
               infoWindow: const InfoWindow(title: 'Your Location'),
               rotation: locationData.heading ?? 0.0,
               flat: true,
@@ -153,18 +154,14 @@ class _MapPageState extends State<MapPage> {
 
           // Draw routes to both destinations
           // await _getDirectionsAndDraw(
-          //   currentLatLng, 
-          //   _gayatriNagar, 
+          //   currentLatLng,
+          //   _gayatriNagar,
           //   'route_gayatri',
           //   Colors.blue
           // );
-          
-          await _getDirectionsAndDraw(
-            currentLatLng, 
-            _manasarovarPlaza, 
-            'route_manasarovar',
-            Colors.red
-          );
+
+          await _getDirectionsAndDraw(currentLatLng, _manasarovarPlaza,
+              'route_manasarovar', Colors.red);
 
           // Update camera
           mapController.animateCamera(
@@ -219,64 +216,6 @@ class _MapPageState extends State<MapPage> {
   }
 
   // Update the _createPolylines method
-  void _createPolylines(LatLng currentLocation) {
-    setState(() {
-      _polylines.clear();
-
-      // Triangle between all locations
-      _polylines.add(
-        Polyline(
-          polylineId: const PolylineId('location_triangle'),
-          points: [
-            currentLocation,
-          //  _gayatriNagar,
-            _manasarovarPlaza,
-            currentLocation, // Complete the loop
-          ],
-          color: Colors.blue,
-          width: 4,
-          patterns: [
-            PatternItem.dash(20),
-            PatternItem.gap(10),
-          ],
-        ),
-      );
-
-      // Update markers
-      _markers.clear();
-      _markers.addAll({
-        Marker(
-          markerId: const MarkerId('current'),
-          position: currentLocation,
-          icon:
-              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-          infoWindow: const InfoWindow(
-            title: 'Your Location',
-            snippet: 'You are here',
-          ),
-        ),
-        // Marker(
-        //   markerId: const MarkerId('gayatri'),
-       //   position: _gayatriNagar,
-        //   icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-        //   infoWindow: const InfoWindow(
-        //     title: 'Gayatri Nagar',
-        //     snippet: 'Destination 1',
-        //   ),
-        // ), 
-        Marker(
-          markerId: const MarkerId('manasarovar'),
-          position: _manasarovarPlaza,
-          icon:
-              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet),
-          infoWindow: const InfoWindow(
-            title: 'Manasarovar Plaza',
-            snippet: 'Destination 3',
-          ),
-        ),
-      });
-    });
-  }
 
   // Future<void> _createUserIcon() async {
   //   _userIcon = await BitmapDescriptor.fromAssetImage(
@@ -286,7 +225,8 @@ class _MapPageState extends State<MapPage> {
   // }
 
   // Add this method to get route from Google Directions API
-  Future<void> _getDirectionsAndDraw(LatLng origin, LatLng destination, String routeId, Color color) async {
+  Future<void> _getDirectionsAndDraw(
+      LatLng origin, LatLng destination, String routeId, Color color) async {
     final url = 'https://maps.googleapis.com/maps/api/directions/json'
         '?origin=${origin.latitude},${origin.longitude}'
         '&destination=${destination.latitude},${destination.longitude}'
@@ -299,7 +239,7 @@ class _MapPageState extends State<MapPage> {
         if (data['routes'].isNotEmpty) {
           final points = data['routes'][0]['overview_polyline']['points'];
           final List<LatLng> routePoints = _decodePolyline(points);
-          
+
           setState(() {
             _polylines.add(
               Polyline(
